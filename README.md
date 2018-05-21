@@ -1,8 +1,7 @@
 Role Name
 =========
 
-A brief description of the role goes here.
-
+Ansible Logstash Role, by default this will take input from Filebeat and output it to Elasticsearch
 Requirements
 ------------
 
