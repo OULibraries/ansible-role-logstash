@@ -1,0 +1,4 @@
+---
+# vars file for ansible_role_logstash
+elasticsearch_url: localhost
+elasticsearch_port: 9200

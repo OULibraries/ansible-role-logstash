@@ -1,0 +1,55 @@
+---
+
+- name: Ensure Elastic Repo Installed
+  yum_repository:
+    baseurl: https://artifacts.elastic.co/packages/6.x/yum
+    name: elastic
+    description: Elastic Co Repo
+    gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+- name: Install Logstash from Elastic Repo
+  yum:
+    name: logstash
+    state: present
+
+- name: Insert Filebeat Input Config Template
+  template:
+    src: filebeat-input.conf.j2
+    dest: /etc/logstash/conf.d/filebeat-input.conf
+    mode: 0644
+    owner: root
+    group: wheel
+    backup: yes
+
+- name: Insert Syslog Filter Config Template
+  template:
+    src: syslog-filter.conf.j2
+    dest: /etc/logstash/conf.d/syslog-filter.conf
+    mode: 0644
+    owner: root
+    group: wheel
+    backup: yes
+
+- name: Insert Elastichsearch Output Config Template
+  template:
+    src: output-elasticsearch.conf.j2
+    dest: /etc/logstash/conf.d/output-elasticsearch.conf
+    mode: 0644
+    owner: root
+    group: wheel
+    backup: yes
+
+- name: Run Logstash system-install
+  shell: /usr/share/logstash/bin/system-install
+
+- name: Enable Logstash
+  service:
+    name: logstash
+    enabled: yes
+
+- name: Start Logstash
+  service:
+    name: logstash
+    state: restarted
+
+
