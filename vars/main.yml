@@ -1,2 +1,2 @@
 ---
-#Vars for Logstash Role
+# vars file for ansible_role_logstash
