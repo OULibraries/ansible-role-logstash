@@ -1,18 +1,92 @@
-filter {
- 
-    grok {
-      match => { "message" => "%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:syslog_hostname} %{DATA:syslog_program}(?:\[%{POSINT:syslog_pid}\])?: %{GREEDYDATA:syslog_message}" }
-  }
-    date {
-      match => [ "syslog_timestamp", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ]
+filter
+{
+  grok
+  {
+    match =>
+    {
+      "message" =>
+      [
+        "%{TIMESTAMP_ISO8601:log_timestamp} %{GREEDYDATA:message}",
+        "%{SYSLOG5424PRI}%{CISCOTIMESTAMP:log_timestamp} %{GREEDYDATA:message}"
+      ]
     }
-  
+  }
+  date
+  {
+    match => [ "log_timestamp", "ISO8601" ]
+  }
+  syslog_pri { }
+  mutate
+  {
+    add_tag => ["timestamped"]
+  }
+}
+filter
+{
+  if "timestamped" in [tags]
+  {
+    grok
+    {
+      match =>
+      {
+        "message" =>
+        [
+          "%{TIMESTAMP_ISO8601:log_timestamp} %{NOTSPACE:service} %{HOSTNAME:hostname} %{GREEDYDATA:message}",
+          "%{TIMESTAMP_ISO8601:log_timestamp} %{NOTSPACE:service}-ng %{HOSTNAME:hostname} %{GREEDYDATA:message}"
+        ]
+      }
+    overwrite => [ "log_timestamp" ]
+    }
+    mutate
+    {
+      add_tag => ["parsed"]
+      remove_field => [ "@version", "beat", "input_type", "syslog_facility_code", "syslog_severity_code", "type" ]
+    }
+  }
+}
+filter
+{
+  if "parsed" in [tags]
+  {
+    grok
+    {
+      match =>
+      {
+        "message" => ["%{TIMESTAMP_ISO8601:log_timestamp} %{IP:client_ip} %{HTTPD_COMMONLOG:httpd_common} %{QUOTEDSTRING:referrer} %{QUOTEDSTRING:browser}",
+          "%{IPV4:client_ip} %{HOSTNAME:hostname} - - %{GREEDYDATA:message}"
+        ]
+      }
+    overwrite => [ "client_ip","hostname","log_timestamp", "message" ]
+    add_tag => ["nginx"]
+    }
+    mutate
+    {
+      remove_field => [ "@version", "beat", "input_type", "syslog_facility_code", "syslog_severity_code", "type", "clientip" ]
+    }
+  }
 }
 
-filter {
-  json {
-     source => "message"
+filter
+{
+  if "_grokparsefailure" in [tags]
+  {
+    grok
+    {
+      match =>
+      {
+        "message" =>
+        [
+          "%{TIMESTAMP_ISO8601:log_timestamp} %{NOTSPACE:service} %{HOSTNAME:hostname} %{GREEDYDATA:message}",
+          "%{TIMESTAMP_ISO8601:log_timestamp} %{NOTSPACE:service}-ng %{HOSTNAME:hostname} %{GREEDYDATA:message}"
+        ]
+      }
+    overwrite => [ "log_timestamp","message","hostname","service" ]
+    }
+    mutate
+    {
+      add_tag => [ "syslog" ]
+      remove_tag => [ "beats_input_codec_plain_applied", "_grokparsefailure" ]
+      remove_field => [ "@version", "beat", "input_type", "syslog_facility_code", "syslog_severity_code", "type", "timestamp" ]
+    }
+    }
 }
-}
-
-
